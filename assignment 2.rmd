@@ -1,0 +1,149 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#John R. Cobb
+#Ban 502
+#Classification trees
+
+```{r}
+library(tidyverse)
+library(caret)
+library(rpart)
+library(rattle)
+library(RColorBrewer)
+```
+
+```{r}
+parole <- read_csv("parole (1).csv")
+View(parole)
+```
+
+```{r}
+str(parole)
+summary(parole)
+```
+
+
+
+```{r}
+parole = parole %>% mutate(male = as.factor(male)) %>% 
+  mutate(male = fct_recode(male, "no" = "0", "yes"= "1")) 
+parole = parole %>% mutate(race = as.factor(race)) %>% 
+  mutate(race = fct_recode(race, "white" = "1", "not white" = "2" ))
+parole = parole %>% mutate(state = as.factor(state)) %>% 
+  mutate(state = fct_recode(state, " other" = "1", "Kentucky" = "2", "Louisiana" = "3", "Virginia" = "4" ))
+parole = parole %>% mutate(crime = as.factor(crime)) %>% 
+  mutate(crime = fct_recode(crime, "other"= "1", "larceny" = "2", "drug-related" = "3", "driving related" = "4" ))
+parole = parole %>% mutate(multiple.offenses = as.factor(multiple.offenses)) %>% 
+  mutate(multiple.offenses = fct_recode(multiple.offenses, "no" = "0", "yes" = "1" ))
+parole = parole %>% mutate(violator = as.factor(violator)) %>% 
+  mutate(violator = fct_recode(violator,"no" = "0", "yes" = "1" ))
+set.seed(12345) 
+train.rows = createDataPartition(y = parole$violator, p=0.7, list = FALSE) 
+train = parole[train.rows,] 
+test = parole[-train.rows,]
+
+```
+
+```{r}
+tree1 = rpart(violator  ~., train, method="class")
+fancyRpartPlot(tree1)
+```
+I would classify a 40 year old from Louisiana who served a 5 year sentence as a non-violator. As far as this classification tree goes, I chose no to other, vitginia, or kentucky, thn I chose yes to less than 43 years old, then I chose yes to greter than or equal to 5 years in prison. This process led me to a decision of non-violator.
+
+```{r}
+printcp(tree1)
+plotcp(tree1)
+```
+it appears that an infinite cp value should be used
+
+```{r}
+tree2 = prune(tree1,cp= tree1$cptable[which.min(tree1$cptable[,"xerror"]),"CP"])
+
+```
+the majority category falls into the non-violator category
+
+```{r}
+treepred = predict(tree1, train, type = "class")
+head(treepred)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred,train$violator) 
+```
+the model using the training data had an accuracy of .907, whereas the naive model had an accuracy of .8837 which is a marginal improvement. the sensitivity is .9617 and the specificity is .4909
+
+```{r}
+treepred_test = predict(tree1, newdata=test, type = "class")
+head(treepred_test)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred_test,test$violator) #predictions first then actual
+```
+compared to the traing model, the testing model fell below the threshhold of the naive model. In this case the accuracy of the test model was .86 and the naive model was .89. also in both cases the pvalue was not signficantly significant, this of course could be from a relatively small data set. I still intuitively don't think it would be best to run with the naive model assuming that most of the population would be non-violators. Im not sure if the 4 percent difference in testing and training accuracy matters all that much, I still like the idea of using and visualizing adhoc predictions instead of using a blanket naive prediction. I think it is a good model
+
+```{r}
+Blood <- read_csv("Blood.csv")
+View(Blood)
+```
+
+```{r}
+Blood = Blood %>% mutate(DonatedMarch = as.factor(DonatedMarch)) %>% 
+  mutate(DonatedMarch = fct_recode(DonatedMarch, "No"= "0", "Yes"= "1"))
+```
+
+```{r}
+set.seed(12345) 
+train.rows = createDataPartition(y = Blood$DonatedMarch, p=0.7, list = FALSE) 
+train2 = Blood[train.rows,] 
+test2 = Blood[-train.rows,]
+```
+
+```{r}
+tree3 = rpart(DonatedMarch  ~., train2, method="class")
+fancyRpartPlot(tree3)
+```
+
+```{r}
+printcp(tree3)
+plotcp(tree3)
+```
+
+```{r}
+tree4 = prune(tree3,cp= tree3$cptable[which.min(tree3$cptable[,"xerror"]),"CP"])
+#most of the code in the line above can be left untouched. Just change tree1 to the name of your tree model (if it's not called tree1)
+fancyRpartPlot(tree3)
+```
+
+
+Predictions on training set  
+```{r}
+treepred2 = predict(tree4, train2, type = "class")
+head(treepred2)
+```
+
+Caret confusion matrix and accuracy, etc. calcs  
+```{r}
+confusionMatrix(treepred2,train2$DonatedMarch) #predictions first then actual
+```
+
+  
+```{r}
+treepred_test2 = predict(tree4, newdata=test2, type = "class")
+head(treepred_test)
+```
+
+  
+```{r}
+confusionMatrix(treepred_test2,test2$DonatedMarch) 
+```
+From the training and testing set, it appears that compared to there is differene in accuracy, the training set accuracy was .81 and the naive was .76 which is better. the testing model accuracy was .7589 and the naive model was .76. it can be seen that the model difference in the testing model was not statistically significant, while the trainig model was, again, this is probably due to such a small data set. I think the models are a better fit for the data than the naive
+
+
+
+
